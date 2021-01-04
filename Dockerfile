@@ -54,22 +54,24 @@ RUN set -x \
   && cd /usr/local/bin \
   && ln -s /usr/bin/python3 python \
   && pip3 install --upgrade pip \
-  && cd
+  && mkdir -p $HOME && cd
 
 # install nodejs
 RUN set -x \
   && : "Install node.js" \
-  && curl -sL https://deb.nodesource.com/setup_14.x | bash
+  && apt-get update \
+  && curl -sL https://deb.nodesource.com/setup_14.x | bash -
 
-RUN apt-get -y install nodejs
-RUN npm install
+RUN apt-get -y install nodejs npm
+# RUN npm install
 
 
 # install yarn
 RUN set -x \
-  && curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
-  && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
   && apt-get update \
+  # && curl -fsSL --no-check-certificate https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
+  && wget -q -O - /tmp/pubkey.gpg https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
+  && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
   && apt-get -y --no-install-recommends install yarn \
   && : "Clean" \
   && apt-get clean \
@@ -175,6 +177,8 @@ ENV DEBIAN_FRONTEND=dialog \
 
 RUN git config --global user.name "sktrinh12" && git config --global user.email sktrinh12@gmail.com
 
-RUN chmod +x /dotfile_alias.sh #&& /dotfile_alias.sh
+RUN chmod +x /dotfile_alias.sh
+
+#ENTRYPOINT ["/dotfile_alias.sh"]
 
 CMD ["/bin/bash"]
