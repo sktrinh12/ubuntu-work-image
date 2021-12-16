@@ -35,7 +35,8 @@ RUN set -x \
     xclip \
     tmux \
     ssh \
-	gnupg2 \
+    gnupg2 \
+    sudo \
   && : "Clean" \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
@@ -56,20 +57,23 @@ RUN set -x \
   && pip3 install --upgrade pip \
   && mkdir -p $HOME && cd
 
+
 # install nodejs
 RUN set -x \
   && : "Install node.js" \
   && apt-get update \
-  && curl -sL https://deb.nodesource.com/setup_14.x | bash -
+  && apt install -y --allow-downgrades libssl1.1=1.1.1f-1ubuntu2 \
+  && apt install -y npm \
+  && curl -sL https://deb.nodesource.com/setup_15.x | sudo -E bash -
 
-RUN apt-get -y install nodejs npm
-# RUN npm install
+#RUN apt-get -y install nodejs npm
+#RUN npm install
 
 
 # install yarn
 RUN set -x \
   && apt-get update \
-  # && curl -fsSL --no-check-certificate https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
+   #&& curl -fsSL --no-check-certificate https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
   && wget -q -O - /tmp/pubkey.gpg https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
   && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
   && apt-get -y --no-install-recommends install yarn \
@@ -112,20 +116,20 @@ RUN set -x \
                 neovim \
   && curl -fLo "${XDG_DATA_HOME}/nvim/site/autoload/plug.vim" --create-dirs \
             https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim \
-  && npm install -g neovim \
+  #&& npm install -g neovim \
   #&& gem install neovim \
   && : "Clean" \
   && rm nvim.appimage
 
 RUN set -x \
   && : "Git clone the .vim files" \
-  && cd ${HOME} \
-  && git clone https://github.com/sktrinh12/dot_files.git
+  && git clone https://github.com/sktrinh12/dot_files.git $HOME/dot_files
 
 # copy config files and tmux files; init bare git repo
 RUN set -x \
   && : "git dotfiles" \
-  && cp -r $HOME/dot_files/.config/* ~/.config/ \
+  && mkdir -p $HOME/.config/ \
+  && cp -r $HOME/dot_files/.config/* $HOME/.config/ \
   && cp $HOME/dot_files/.tmux.conf $HOME/ \
   && git init --bare $HOME/.config \
   && echo "alias dotfiles='/usr/bin/git --git-dir=${HOME}/.config/ --work-tree=${HOME}'" >> ~/.bashrc
@@ -160,11 +164,24 @@ RUN set -x \
 
 ENV SOURCE_DIR=/workspace
 ENV TERM=xterm-256color
+ENV VIRTUAL_ENV=/workspace/Documents/ubuntu/venv_general/venv
+
+# for VENV
+RUN apt-get update \
+  && apt-get upgrade -y \
+  && apt-get install -y python3-venv
+
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH "${VIRTUAL_ENV}/bin:${PATH}"
+RUN pip install numpy pandas matplotlib scipy wheel fastapi Jinja2 aiofiles python-multipart
 
 RUN set -x \
   && : "Create workspace for all user" \
   && mkdir -p $SOURCE_DIR \
-  && chmod 777 $SOURCE_DIR
+  && chmod 777 $SOURCE_DIR \
+  && echo "alias venv='source ${VIRTUAL_ENV}/bin/activate'" >> $HOME/.bashrc \
+  && echo "alias ..='cd ..'" >> $HOME/.bashrc
+
 
 COPY dotfile_alias.sh .
 
@@ -180,5 +197,6 @@ RUN git config --global user.name "sktrinh12" && git config --global user.email 
 RUN chmod +x /dotfile_alias.sh
 
 #ENTRYPOINT ["/dotfile_alias.sh"]
+EXPOSE 1338 
 
 CMD ["/bin/bash"]

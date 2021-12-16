@@ -1,0 +1,280 @@
+---
+- name: vm install setup
+  hosts: azvm
+  gather_facts: no
+  vars:
+    rmtuser: "ca10322096"
+    install_dest: "/home/{{rmtuser}}"
+    checkinstall:
+    gperftools_list:
+      - gperftools-libs-2.6.1-1.el7.x86_64
+      - gperftools-devel-2.6.1-1.el7.x86_64
+      - gperftools-2.6.1-1.el7.x86_64
+    pkgs_list:
+      - cmake
+      - gcc
+      - gcc-c++
+      - libtool
+      - unzip
+      - yum-utils
+      - rh-python36
+      - python3-pip
+      - ca-certificates
+      - curl
+      - git
+      - wget
+      - tmux
+      - gnupg2
+  become: yes
+
+  tasks:
+    ### Play 1
+    # - name: install yum pkgs
+    #   become: yes
+    #   become_method: sudo
+    #   yum:
+    #     name: "{{item}}"
+    #     state: latest
+    #     update_cache: yes
+    #   loop: "{{pkgs_list}}"
+    #   register: yuminstall
+
+#     - name: download epel-release
+#       get_url:
+#         url: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+#         dest: "{{install_dest}}"
+#         mode: '0440'
+#       register: downloadepel
+
+#     - name: install epel-release
+#       yum:
+#         name: epel-release-latest-7.noarch.rpm
+#         state: latest
+#       register: installepel
+
+#     - name: delete epel-release file
+#       command: rm epel-release-latest-7.noarch.rpm
+#       register: delepel
+#       when: installepel is succeeded
+
+#     ### Play 2
+#     - name: pip3 install
+#       shell:
+#            "pip3 install --no-cache setuptools"
+#       register: pip3
+
+#     ### Play 3
+#     - name: install nodejs
+#       become: yes
+#       become_method: sudo
+#       shell: |
+#             curl -sL https://rpm/nodesource.com/setup_14.x | sudo bash -
+#             yum -y install nodejs
+#       register: nodejs
+
+#     ### Play 4
+#     - name: check if .zshrc exists
+#       stat:
+#         path: "{{install_dest}}/.zshrc"
+#       register: stat_rc_result
+
+#     ### Play 5
+#     - name: check if .oh-my-zsh exists
+#       stat:
+#         path: "{{install_dest}}/.oh-my-zsh"
+#       register: stat_ohmyzsh_result
+
+#     ### Play 6
+#     - name: Clone ohmyzsh
+#       become: yes
+#       become_user: "{{rmtuser}}"
+#       git:
+#         repo: https://github.com/robbyrussell/oh-my-zsh
+#         dest: "{{install_dest}}/.oh-my-zsh"
+#       when: not stat_ohmyzsh_result.stat.exists
+
+#     ### Play 7
+#     - name: check if fzf exists
+#       stat:
+#         path: "{{install_dest}}/.fzf"
+#       register: stat_fzf_result
+
+#     ### Play 8
+#     - name: clone fzf
+#       become: yes
+#       become_user: "{{rmtuser}}"
+#       shell:
+#             "git clone --depth 1 https://github.com/junegunn/fzf.git {{install_dest}}/.fzf"
+#       when: not stat_fzf_result.stat.exists
+
+#     ### Play 9
+#     - name: install fzf
+#       command:
+#         cmd: ./install
+#         chdir: "{{install_dest}}/.fzf"
+#       async: 2 # for some reason hangs without these
+#       poll: 0
+
+#     ### Play 10
+#     - name: check nvim install
+#       shell: nvim --version | head -1
+#       register: nvimcheck
+
+#     ### Play 12
+    - name: check gperftoolsinstall
+      command: rpm -q "{{item}}"
+      loop: "{{gperftools_list}}"
+      register: stat_gperftools_result
+      ignore_errors: yes
+
+#     - name: show registered var stdout
+#       debug:
+#         msg:
+#           - "{{item.stdout}}"
+#       with_items: "{{stat_gperftools_result.results}}"
+
+#     - name: append results to list
+#       set_fact:
+#         checkinstall: "{{checkinstall}}, {{item.stdout}}"
+#       with_items: "{{stat_gperftools_result.results}}"
+#       when: item.stdout.find('not installed') != -1
+
+#     - name: show checkinstall debug
+#       debug:
+#         msg:
+#           - "{{checkinstall}}"
+
+#     ### Play 13
+#     - name: remove gperftools
+#       become: yes
+#       become_method: sudo
+#       yum:
+#         name: "{{item}}"
+#         state: absent
+#       loop: "{{gperftools_list}}"
+#       when: stat_gperftools_result is failed
+#       ignore_errors: yes
+#       register: gperftoolsremove
+
+#     ### Play 14
+#     - name: download gperftools
+#       get_url:
+#         url: "http://mirror.centos.org/centos/7/os/x86_64/Packages/{{item}}.rpm"
+#         dest: "{{install_dest}}"
+#         mode: '0440'
+#       loop: "{{gperftools_list}}"
+#       when: stat_gperftools_result is failed
+#       register: gperftoolsdownload
+
+     ### Play 14
+    - name: download pprof
+      get_url:
+        url: "http://mirror.centos.org/centos/7/os/x86_64/Packages/pprof-2.6.1-1.el7.noarch.rpm"
+        dest: "{{install_dest}}"
+        mode: '0440'
+      when: stat_gperftools_result is failed
+      register: pprofdownload
+
+    ### Play 15
+    - name: install pprof
+      become: yes
+      become_method: sudo
+      yum:
+        name: "{{install_dest}}/pprof-2.6.1-1.el7.noarch.rpm"
+        state: latest
+      when: pprofdownload is succeeded
+      register: pprofinstall
+      ignore_errors: yes
+
+    ### Play 16
+    - name: delete pprof
+      file:
+        path: "{{install_dest}}/pprof-2.6.1-1.el7.noarch.rpm"
+        state: absent
+      when: pprofdownload is succeeded
+      register: pprofdelete
+      ignore_errors: yes
+
+    ### Play 17
+    - name: install gperftools
+      become: yes
+      become_method: sudo
+      yum:
+        name: "{{install_dest}}/{{item}}.rpm"
+        state: latest
+      loop: "{{gperftools_list}}"
+      when: stat_gperftools_result is failed
+      register: gperftoolsinstall
+
+    - name: show gperftools install output
+      debug:
+        msg: "{{ item}}"
+      with_items: "{{gperftoolsinstall.results}}"
+
+    ### Play 15
+    - name: install nvim
+      become: yes
+      become_method: sudo
+      shell: |
+            curl -o /etc/yum.repos.d/dperson-neovim-epel-7.repo https://copr.fedorainfracloud.org/coprs/dperson/neovim/repo/epel-7/dperson-neovim-epel-7.repo
+            yum -y install neovim --enablerepo=epel
+            yum update
+            #rpm -Va --nofiles --nodigest
+      register: nvim
+      when: nvimcheck.stdout.find('NVIM') != 0
+
+    - name: show nvim install output
+      debug:
+        msg: "{{ nvim.stdout }}"
+
+    ### Play 12
+    - name: install vim-plug & pynvim
+      become: yes
+      become_user: "{{rmtuser}}"
+      shell: |
+            "pip3 install --user {{rmtuser}} --no-cache pynvim neovim"
+            "curl -fLo {{install_dest}}/.local/share/nvim/site/autoload/plug.vim --create-dirs \
+                https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim"
+            npm install -g neovim
+      register: vimplug
+      when: nvimcheck.stdout.find('NVIM') != 0
+
+    ### Play 13
+    - name: check if dotfiles exists
+      stat:
+        path: "{{install_dest}}/dot_files"
+      register: stat_dotfiles_result
+
+    ### Play 14
+    - name: git dotfiles
+      become: yes
+      become_user: "{{rmtuser}}"
+      git:
+        repo: https://github.com/sktrinh12/dot_files.git
+        dest: "{{install_dest}}/dot_files"
+      when: not stat_dotfiles_result.stat.exists
+
+    ### Play 15
+    - name: sed dotfiles
+      become: yes
+      become_user: "{{rmtuser}}"
+      shell: |
+            mv -r "{{install_dest}}/dot_files/.config/*" "{{install_dest}}/.config/"
+            mv "{{install_dest}}/dot_files/.tmux.conf" "{{install_dest}}"
+            sed -i "s|let g:python3_host_prog = '~/miniconda3/envs/py37/bin/python3.7'||g" "{{install_dest}}/.config/nvim/general.vim"
+            sed -i "s|set shell=/usr/local/bin/zsh||g" "{{install_dest}}/.config/nvim/general.vim"
+            sed -i "s|/usr/local/bin/zsh|/usr/bin/bash|g" "{{install_dest}}/.tmux.conf"
+            sed -i "s|/bin/sh|/usr/bin/bash|g" "{{install_dest}}/.tmux.conf"
+            sed -i "s|Plug '/usr/local/opt/fzf'|Plug 'junegunn/fzf', {'do':{->fzf#install() } }|g" "{{install_dest}}/.config/nvim/plugin_list.vim"
+      register: dotfiles
+      when: not stat_dotfiles_result.stat.exists
+
+    ### Play 10
+    - name: install vim plugins
+      become: yes
+      become_user: "{{rmtuser}}"
+      shell: |
+              nvim +PlugInstall +qa
+              nvim +UpdateRemotePlugins +qa
+              nvim +CocInstall coc-python coc-tsserver coc-json coc-html coc-css +qa
+      register: vimplug

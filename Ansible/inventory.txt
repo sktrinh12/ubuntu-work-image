@@ -1,0 +1,3 @@
+[azvm]
+10.29.128.4 ansible_ssh_private_key_file=/home/dev/.ssh/id_dsa
+10.29.128.5 ansible_ssh_private_key_file=/home/dev/.ssh/id_dsa
